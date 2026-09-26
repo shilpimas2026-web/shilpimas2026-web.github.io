@@ -2324,10 +2324,24 @@
    #view-case-worker; appended last, so it settles the page's own base
    rules without editing them. Interactions are untouched. ---- */
 
-/* rhythm: 32px between sections, 24px from a section label to its content */
-#view-case-worker .case-section + .case-section { margin-top: 32px; }
-#view-case-worker .case-section > .section-label { margin: 0 0 24px; color: var(--ink-muted); }
+/* rhythm: one rule for every primary section (the eleven in the sidebar,
+   Tools included). A large break before each section title, a small gap
+   from the title to its content, so the title belongs to what follows:
+   previous content -> 64px -> TITLE -> 16px -> content (48px break on
+   phones). Sections end flush, so the break is the same everywhere.
+   Subsections keep their own smaller spacing. */
+#view-case-worker { --cs-break: 64px; --cs-attach: 16px; }
+@media (max-width: 639px) { #view-case-worker { --cs-break: 48px; } }
+#view-case-worker .case-section { margin-top: var(--cs-break); }
+#view-case-worker .case-section > :last-child { margin-bottom: 0; }
+#view-case-worker .case-section > .section-label { margin: 0 0 var(--cs-attach); color: var(--ink-muted); }
 #view-case-worker .case-section > .section-label + * { margin-top: 0; }
+/* Tools is a primary section that sits inside Context's box in the markup */
+#view-case-worker .case-tools { margin-top: var(--cs-break); }
+#view-case-worker .case-tools > .tools-label { margin: 0 0 var(--cs-attach); }
+/* Impact's pinned stage carries 16px of its own padding above its first line
+   (it clears the top bar while pinned); pull it up so the visible gap is the same */
+#view-case-worker #cw-impact > .section-label + .i3d { margin-top: -16px; }
 
 /* body: the reference's 14/22.75 everywhere prose appears */
 #view-case-worker .detail-intro,
