@@ -2640,6 +2640,16 @@
   #view-case-worker .imp-wipe, #view-case-worker .imp-face { transition: none; }
 }
 
+/* ---- Photography/Engineering tile, hover: ThreeUI <CrtBackground
+   variant="terminal" /> (source revision SHA-256 860a1eb1d4c9, ported to
+   vanilla JS below). It lives inside the tile's own wipe, so it grows from
+   the cursor exactly as the hover always has. Rest state is untouched. The
+   Gallery caption is kept for screen readers only. ---- */
+.threeui-background { position: relative; isolation: isolate; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; background: #030304; }
+.threeui-background > canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.tile--photo-feature .tile-wipe > .tile-crt { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tile--photo-feature .tile-caption { clip: rect(0 0 0 0); clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
+
 </style>
 
 <!-- a11y-layer -->
@@ -2764,7 +2774,7 @@
     <!-- 6. Photography (photo base always visible → green wipe, single caption fade-in) -->
     <a class="tile tile--photo-feature" href="#photography" data-wipe>
       <div class="tile-base"><div class="tile-type" aria-hidden="true"><canvas></canvas></div></div>
-      <div class="tile-wipe"></div>
+      <div class="tile-wipe"><div class="threeui-background crt crt-terminal tile-crt" aria-hidden="true"><canvas></canvas></div></div>
       <div class="tile-body">
         <div class="tile-caption">
           <span class="eyebrow">Photography</span>
@@ -10640,6 +10650,309 @@ three/build/three.module.js:
   if (app && window.MutationObserver) new MutationObserver(relayout).observe(app, { attributes: true, attributeFilter: ['data-route'] });
   scene.__clock = 0;
   relayout();
+})();
+</script>
+<script>
+/* ThreeUI CrtBackground, variant "terminal" (@designcodeio/threeui 1.2.0,
+   src/shaders/crt: CrtBackground.tsx, crtRenderer.ts, crtShaders.ts,
+   crtScreens.ts; source revision SHA-256 860a1eb1d4c9). Ported line for
+   line from the package's own build to plain JS (this site has no React).
+   Configured as <CrtBackground variant="terminal" speed={1} typeSpeed={1}
+   motion={1} hue={0} saturation={1} brightness={1} opacity={1} />.
+   Unchanged: the shaders, the terminal style values, the text-canvas
+   layout, the typing rate (4.4 chars/frame), the 42 ms redraw gate and the
+   420 ms caret. Changed, as asked: the authored log is the tile's
+   Engineering log, and the phosphor palette is the portfolio's (cream text,
+   red status and glow, a near-black red screen). It types again on every
+   hover and only renders while the tile is hovered. */
+(function () {
+  'use strict';
+  var host = document.querySelector('.tile--photo-feature .tile-crt');
+  if (!host) return;
+  var tile = host.closest('.tile');
+  var canvasEl = host.querySelector('canvas');
+
+  var CRT_VERTEX_SHADER = `attribute vec2 aPos;
+void main(){ gl_Position = vec4(aPos,0.0,1.0); }`;
+  var CRT_FRAGMENT_SHADER = `precision highp float;
+uniform sampler2D uTex;
+uniform vec2 uRes;
+uniform float uTime;
+uniform float uMotion;
+uniform vec2 uCurve;
+uniform float uScan;
+uniform float uScanDepth;
+uniform float uTriad;
+uniform float uGrille;
+uniform float uChroma;
+uniform float uBar;
+uniform float uFlicker;
+uniform float uGrain;
+uniform float uNoise;
+uniform float uVignette;
+uniform float uMono;
+uniform float uGain;
+uniform float uHalo;
+uniform vec3 uSheen;
+uniform vec3 uRoom;
+
+float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+
+vec2 curve(vec2 uv){
+  uv = uv*2.0-1.0;
+  vec2 o = uv.yx*uv.yx;
+  uv += uv * o * uCurve;
+  uv = uv*0.5+0.5;
+  return uv;
+}
+
+void main(){
+  vec2 fuv = gl_FragCoord.xy / uRes;
+  vec2 uv = curve(fuv);
+  float t = uTime;
+
+  /* analogue transport faults: per-row jitter, a rolling dropout band, and the
+     head-switching scramble along the bottom edge of the raster */
+  float band = 0.0;
+  if (uNoise > 0.001){
+    float row = floor(uv.y * 190.0);
+    float gate = step(0.905, hash(vec2(row, floor(t*15.0))));
+    uv.x += (hash(vec2(row*1.7, floor(t*15.0)+7.0)) - 0.5) * 0.052 * gate * uNoise;
+    float pos = fract(uv.y * 0.8 - t * 0.17);
+    band = smoothstep(0.075, 0.0, pos);
+    uv.x += band * (hash(vec2(floor(uv.y*260.0), floor(t*26.0))) - 0.5) * 0.030 * uNoise;
+    float head = smoothstep(0.030, 0.0, uv.y);
+    uv.x += head * (hash(vec2(floor(uv.y*520.0), floor(t*22.0))) - 0.32) * 0.075 * uNoise;
+    band = max(band, head);
+  }
+
+  vec2 inb = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+  float inside = inb.x*inb.y;
+  vec2 ed = min(uv, 1.0-uv);
+  inside *= smoothstep(0.0,0.020, min(ed.x,ed.y));
+
+  vec2 dir = uv-0.5;
+  float d2 = dot(dir,dir);
+  vec2 ao = dir * (0.0010 + 0.0075*d2) * uChroma;
+  vec3 col;
+  col.r = texture2D(uTex, uv + ao).r;
+  col.g = texture2D(uTex, uv).g;
+  col.b = texture2D(uTex, uv - ao).b;
+
+  /* phosphor halation: a wide cheap tap ring so bright glyphs bloom into the
+     glass instead of relying on the text canvas alone */
+  if (uHalo > 0.001){
+    float s = 0.0038;
+    vec3 wide = texture2D(uTex, uv + vec2( s, 0.0)).rgb
+              + texture2D(uTex, uv + vec2(-s, 0.0)).rgb
+              + texture2D(uTex, uv + vec2(0.0,  s)).rgb
+              + texture2D(uTex, uv + vec2(0.0, -s)).rgb
+              + texture2D(uTex, uv + vec2( s,  s)*0.72).rgb
+              + texture2D(uTex, uv + vec2(-s, -s)*0.72).rgb;
+    col += wide * (uHalo / 6.0);
+  }
+
+  float sl = sin(uv.y*3.14159265*uScan + t*4.0*uMotion);
+  col *= mix(1.0 - uScanDepth, 1.0, sl*sl);
+
+  float gx = gl_FragCoord.x * (6.2831853/max(uTriad, 1.0));
+  vec3 grille = (1.0-uGrille) + uGrille*cos(gx + vec3(0.0,2.094,4.188));
+  col *= mix(vec3(1.0), grille, step(0.001, uGrille));
+  col *= uGain;
+
+  float bar = fract(uv.y*0.5 - t*0.07*uMotion);
+  bar = smoothstep(0.0,0.05,bar)*smoothstep(0.18,0.05,bar);
+  col += bar*uBar*uMotion;
+
+  float sheen = smoothstep(0.55,0.0, distance(uv, vec2(0.50,0.15)));
+  col += sheen*0.030*uSheen;
+
+  float vig = smoothstep(0.98,0.30, length((uv-0.5)*vec2(1.05,1.0)));
+  col *= mix(1.0-uVignette, 1.0, vig);
+  col *= 1.0 - uFlicker*uMotion*sin(t*8.0);
+
+  if (uNoise > 0.001){
+    float st = hash(fuv*uRes*0.5 + vec2(floor(t*24.0), floor(t*24.0)*1.7));
+    col += (st-0.5)*0.135*uNoise;
+    col += band*0.085*uNoise;
+  }
+  col += (hash(fuv + fract(t*0.37)) - 0.5)*uGrain;
+
+  float luma = dot(col, vec3(0.2126,0.7152,0.0722));
+  col = mix(col, vec3(luma), uMono);
+
+  float spill = smoothstep(0.85,0.18, length(fuv-0.5))*0.05;
+  vec3 room = uRoom + uSheen*spill*0.42;
+  col = mix(room, col, inside);
+  col = max(col, uRoom*0.34);
+  gl_FragColor = vec4(col,1.0);
+}`;
+
+  /* crtScreens.ts CRT_STYLES.terminal -- values as authored, except the
+     screen colour (background/room/sheen) in the portfolio palette */
+  var STYLE = {
+    curve: [0.115, 0.165], scanDensity: 0.44, scanDepth: 0.3, triadCss: 3.2, grille: 0.34, chroma: 1, bar: 0.045,
+    flicker: 0.028, grain: 0.022, noise: 0, vignette: 0.58, mono: 0, gain: 1.34, halo: 0.1,
+    sheen: [1, 0.72, 0.64], room: [0.036, 0.012, 0.012], background: '#160808',
+    filtering: 'linear', surface: { mode: 'buffer' }, redrawMs: 0
+  };
+  var PROPS = { variant: 'terminal', speed: 1, typeSpeed: 1, motion: 1, brightness: 1, opacity: 1, hue: 0, saturation: 1 };
+
+  /* the authored log: same structure (runs of text + tone), new content */
+  function t(s, u) { return { t: s, c: u || 'p' }; }
+  function m(n) { return '·'.repeat(n); }
+  function field(label) { return [t(label + ' '), t(m(Math.max(3, 33 - label.length)) + ' ', 'd'), t('OK', 'a')]; }
+  var O = [
+    [t('ENGINEERING', 'd')],
+    [t('Built between briefs', 'h')],
+    [t('Research, prototypes and code.')],
+    [],
+    [t('$ ', 'd'), t('ls ./fields')],
+    field('Machine learning'),
+    field('Material engineering'),
+    field('Robotics'),
+    field('Human-computer interaction'),
+    field('Design futures by speculation'),
+    [],
+    [t('$ ', 'd'), t('speculate --year 2046')],
+    [t('what if tools could feel?', 'd')],
+    [],
+    [t('$ ', 'd')]
+  ];
+  /* tones: primary, dim, accent (status), highlight */
+  var Q = {
+    p: { fill: '#EDE1D3', glow: 'rgba(238,35,36,0.62)' },
+    d: { fill: '#a8988c', glow: 'rgba(238,35,36,0.32)' },
+    a: { fill: '#EE2324', glow: 'rgba(238,35,36,0.95)' },
+    h: { fill: '#fff5ea', glow: 'rgba(237,225,211,0.85)' }
+  };
+  var CARET = '#EDE1D3';
+  var MONO = 'ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace';
+
+  function k(s) { return s.reduce(function (u, I) { return u + I.t.length; }, 0); }
+  var ee = O.reduce(function (s, u) { return s + k(u); }, 0), H = Math.max.apply(null, O.map(k)), Ne = 1920, Pe = 640, te = 24e5;
+
+  function re(s, u, I) {
+    var e = s.createShader(u);
+    if (!e) throw new Error('Unable to create CRT shader');
+    s.shaderSource(e, I); s.compileShader(e);
+    if (!s.getShaderParameter(e, s.COMPILE_STATUS)) throw new Error(s.getShaderInfoLog(e) || 'CRT shader compilation failed');
+    return e;
+  }
+
+  function createCrtRenderer(s, u, I) {
+    var e = u.getContext('webgl', { antialias: false, alpha: false, depth: false, premultipliedAlpha: false });
+    if (!e) throw new Error('CRT requires WebGL');
+    var x = document.createElement('canvas'), o = x.getContext('2d');
+    if (!o) throw new Error('CRT text canvas unavailable');
+    var W = re(e, e.VERTEX_SHADER, CRT_VERTEX_SHADER), $ = re(e, e.FRAGMENT_SHADER, CRT_FRAGMENT_SHADER), d = e.createProgram();
+    if (!d) throw new Error('Unable to create CRT program');
+    e.attachShader(d, W); e.attachShader(d, $); e.linkProgram(d);
+    if (!e.getProgramParameter(d, e.LINK_STATUS)) throw new Error(e.getProgramInfoLog(d) || 'CRT link failed');
+    e.useProgram(d);
+    var K = e.createBuffer();
+    e.bindBuffer(e.ARRAY_BUFFER, K); e.bufferData(e.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), e.STATIC_DRAW);
+    var z = e.getAttribLocation(d, 'aPos');
+    e.enableVertexAttribArray(z); e.vertexAttribPointer(z, 2, e.FLOAT, false, 0, 0);
+    function i(n) { return e.getUniformLocation(d, n); }
+    var ae = i('uTex'), ne = i('uRes'), oe = i('uTime'), ie = i('uMotion'), fe = i('uCurve'), se = i('uScan'), le = i('uScanDepth'), ue = i('uTriad'), de = i('uGrille'), he = i('uChroma'), ce = i('uBar'), me = i('uFlicker'), Te = i('uGrain'), Ee = i('uNoise'), Re = i('uVignette'), ge = i('uMono'), xe = i('uGain'), Me = i('uHalo'), Ae = i('uSheen'), pe = i('uRoom'), N = e.createTexture();
+    e.bindTexture(e.TEXTURE_2D, N); e.texParameteri(e.TEXTURE_2D, e.TEXTURE_WRAP_S, e.CLAMP_TO_EDGE); e.texParameteri(e.TEXTURE_2D, e.TEXTURE_WRAP_T, e.CLAMP_TO_EDGE); e.uniform1i(ae, 0);
+    var M = 1, b = 1, P = 1, B = 1, c = 14, X = 20, v = 0, A = 8, y = 0, U = 0, L = 0, p = false, S = true, R = 0, D = -1, _ = -1, a = STYLE;
+    var V = performance.now();
+    function q() {
+      e.useProgram(d); e.uniform2f(fe, a.curve[0], a.curve[1]); e.uniform1f(le, a.scanDepth); e.uniform1f(de, a.grille); e.uniform1f(he, a.chroma); e.uniform1f(ce, a.bar); e.uniform1f(me, a.flicker); e.uniform1f(Te, a.grain); e.uniform1f(Ee, a.noise); e.uniform1f(Re, a.vignette); e.uniform1f(ge, a.mono); e.uniform1f(xe, a.gain); e.uniform1f(Me, a.halo); e.uniform3f(Ae, a.sheen[0], a.sheen[1], a.sheen[2]); e.uniform3f(pe, a.room[0], a.room[1], a.room[2]);
+      var n = a.filtering === 'nearest' ? e.NEAREST : e.LINEAR;
+      e.bindTexture(e.TEXTURE_2D, N); e.texParameteri(e.TEXTURE_2D, e.TEXTURE_MIN_FILTER, n); e.texParameteri(e.TEXTURE_2D, e.TEXTURE_MAG_FILTER, n);
+    }
+    function Se() {
+      v = b * 0.135; X = b * 0.74 / O.length; c = Math.max(5, Math.min(X * 0.8, M * 0.88 / (Math.max(H, 1) * 0.62)));
+      o.font = '600 ' + c.toFixed(2) + 'px ' + MONO; A = o.measureText('M').width || c * 0.6;
+    }
+    function J(n, f) { var r = Q[n]; o.fillStyle = r.fill; o.shadowColor = f ? r.glow : 'transparent'; o.shadowBlur = f ? c * 0.38 : 0; }
+    function _e(n) {
+      o.setTransform(1, 0, 0, 1, 0, 0); o.fillStyle = a.background; o.fillRect(0, 0, M, b); o.textAlign = 'left'; o.textBaseline = 'top'; o.font = '600 ' + c.toFixed(2) + 'px ' + MONO;
+      var f = n, r = v;
+      y = Math.floor((M - H * A) / 2); U = v;
+      for (var li = 0; li < O.length; li++) {
+        var l = O[li], T = k(l), h = n === Infinity ? Infinity : Math.min(f, T);
+        var E = Math.floor((M - H * A) / 2), w = 0;
+        for (var fi = 0; fi < l.length; fi++) {
+          var F = l[fi], g = F.t;
+          if (h !== Infinity) { var G = h - w; if (G <= 0) break; if (G < g.length) g = g.slice(0, G); }
+          if (g.length) { J(F.c, true); o.fillText(g, E, r); J(F.c, false); o.fillText(g, E, r); E += A * g.length; }
+          w += F.t.length;
+          if (h !== Infinity && w >= h) break;
+        }
+        y = E; U = r;
+        if (h !== Infinity) f -= h;
+        r += X;
+        if (h !== Infinity && f <= 0) break;
+      }
+    }
+    function Ce() {
+      o.shadowColor = Q.p.glow; o.shadowBlur = c * 0.42; o.fillStyle = CARET;
+      o.fillRect(y, U + c * 0.06, Math.max(A * 0.92, 4), c * 0.96); o.shadowBlur = 0; o.fillRect(y, U + c * 0.06, Math.max(A * 0.92, 4), c * 0.96);
+    }
+    function we() {
+      e.bindTexture(e.TEXTURE_2D, N); e.pixelStorei(e.UNPACK_FLIP_Y_WEBGL, true); e.texImage2D(e.TEXTURE_2D, 0, e.RGBA, e.RGBA, e.UNSIGNED_BYTE, x); e.pixelStorei(e.UNPACK_FLIP_Y_WEBGL, false); S = false;
+    }
+    function j() {
+      var n = s.getBoundingClientRect();
+      P = Math.max(1, n.width); B = Math.max(1, n.height);
+      var f = Math.min(window.devicePixelRatio || 1, 2);
+      var r = Math.max(Pe, Math.round(Math.min(P * f, Ne))), l = Math.max(1, Math.round(r * B / P));
+      if (r * l > te) { var w = Math.sqrt(te / (r * l)); r = Math.round(r * w); l = Math.round(l * w); }
+      var T = a.surface, h = T.mode === 'fixed' ? T.width : T.mode === 'cap' ? Math.min(r, T.width) : r, E = T.mode === 'fixed' ? T.height : Math.max(1, Math.round(h * l / r));
+      if (u.width !== r || u.height !== l) { u.width = r; u.height = l; }
+      if (x.width !== h || x.height !== E) { x.width = h; x.height = E; M = h; b = E; Se(); D = -1; _ = -1; R = 0; S = true; }
+      e.useProgram(d); e.viewport(0, 0, r, l); e.uniform2f(ne, r, l); e.uniform1f(se, Math.max(120, Math.min(B * a.scanDensity, 900))); e.uniform1f(ue, Math.max(2, a.triadCss * r / P));
+    }
+    function Ie(n) {
+      var f = p ? Infinity : Math.floor(L), r = Math.floor((n - V) / 420) % 2 === 0 ? 1 : 0, l = p ? r !== _ : n - R > 42;
+      if ((f === D && r === _ && !l) || (!p && n - R <= 42 && f === D && r === _)) return;
+      _e(f); if (r) Ce(); R = n; D = f; _ = r; S = true;
+    }
+    q();
+    return {
+      resize: j,
+      restart: function () { L = 0; p = false; D = -1; _ = -1; R = 0; },
+      render: function (n) {
+        var f = I();
+        var l = (n - V) * 1e-3 * f.speed;
+        if (!p) { L += 4.4 * f.typeSpeed; if (L >= ee) { L = ee; p = true; } }
+        Ie(n);
+        if (S) we();
+        e.useProgram(d); e.uniform1f(oe, l); e.uniform1f(ie, f.motion); e.drawArrays(e.TRIANGLES, 0, 3);
+      },
+      dispose: function () { e.deleteBuffer(K); e.deleteTexture(N); e.deleteProgram(d); e.deleteShader(W); e.deleteShader($); }
+    };
+  }
+
+  /* CrtBackground.tsx: container style + resize/visibility-driven loop */
+  host.style.background = STYLE.background;
+  host.style.opacity = PROPS.opacity;
+  host.style.filter = 'hue-rotate(' + PROPS.hue + 'deg) saturate(' + PROPS.saturation + ') brightness(' + PROPS.brightness + ')';
+  var n;
+  try { n = createCrtRenderer(host, canvasEl, function () { return PROPS; }); } catch (err) { host.style.display = 'none'; return; }
+  var raf = 0, inView = true, active = false, stopT = 0;
+  function frame(c) { n.render(c); raf = inView && active && !document.hidden ? requestAnimationFrame(frame) : 0; }
+  function start() { if (!raf && inView && active && !document.hidden) raf = requestAnimationFrame(frame); }
+  function l() { n.resize(); n.render(performance.now()); }
+  new ResizeObserver(l).observe(host);
+  new IntersectionObserver(function (en) {
+    inView = en[0] ? en[0].isIntersecting : true;
+    if (inView) start(); else if (raf) { cancelAnimationFrame(raf); raf = 0; }
+  }).observe(host);
+  document.addEventListener('visibilitychange', start);
+  /* hover: type again from the top each time the wipe opens; keep drawing
+     until the wipe has closed (its clip-path transition is 300ms) */
+  function sync() {
+    var on = tile.classList.contains('is-hover');
+    if (on && !active) { clearTimeout(stopT); active = true; n.restart(); l(); start(); }
+    else if (!on && active) { clearTimeout(stopT); stopT = setTimeout(function () { active = false; }, 360); }
+  }
+  new MutationObserver(sync).observe(tile, { attributes: true, attributeFilter: ['class'] });
+  l();
 })();
 </script>
 </body>
