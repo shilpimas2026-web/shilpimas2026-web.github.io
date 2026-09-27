@@ -2989,6 +2989,80 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
 #view-case2 #c2-approach .nz-tile .nz-bar { height: 2px; margin-top: 4px; }
 :is(#view-case1, #view-case2) .case-callout > p + p { margin-top: 10px; }
 :is(#view-case1, #view-case2) .ph-slot b { font: 600 10px/15px var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: rgba(237, 225, 211, 0.5); }
+
+  /* ---- My Work, cosmetic pass: the four case studies as a 2 x 2 grid of
+     colour tiles (after the reference showcase), each with its industry and
+     company as pills and any award as a badge, pinned to the tile's foot.
+     Same hover-wipe as before; the wipe is dark on light/red tiles and red
+     on the graphite one, and the pills fade out with the rest face. ---- */
+  .case-feed { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  @media (min-width: 640px) { .case-feed { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .tile.case-feed-card { aspect-ratio: 4 / 3; min-height: 0; }
+  @media (min-width: 640px) { .tile.case-feed-card { min-height: 0; } }
+  .case-feed-card .tile-pad { justify-content: flex-start; }
+  .case-feed-card .case-feed-title { font-size: 20px; line-height: 27.5px; font-weight: 700; }
+  .case-feed-card .body-text { font-size: 14px; line-height: 22.75px; }
+  .case-feed-card .tile-body { position: relative; }
+  .cf-badges { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 3; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; transition: opacity 200ms ease; }
+  .cf-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font: 600 10px/15px var(--font-body); white-space: nowrap; color: var(--ink-inverse); background: rgba(237, 225, 211, 0.16); box-shadow: inset 0 0 0 1px rgba(237, 225, 211, 0.22); }
+  .cf-pill svg { width: 11px; height: 11px; }
+  .cf-award { color: var(--accent-red-deep); background: var(--accent-cream); box-shadow: none; }
+  .case-feed-card.is-hover .cf-badges { opacity: 0; }
+  .case-feed-card--red-deep .tile-wipe { background: var(--accent-graphite); }
+  .case-feed-card--red-deep .tile-face--alt { color: var(--ink-inverse); }
+  .case-feed-card--graphite .tile-wipe { background: var(--accent-red-deep); }
+  .case-feed-card--graphite .tile-face--alt { color: var(--ink-inverse); }
+  .case-feed-card--cream .tile-base { background: var(--accent-cream); }
+  .case-feed-card--cream .tile-wipe { background: var(--accent-graphite); }
+  .case-feed-card--cream .tile-face--rest { color: var(--ink); }
+  .case-feed-card--cream .tile-face--alt { color: var(--ink-inverse); }
+  .case-feed-card--cream .cf-pill { color: var(--ink); background: rgba(33, 33, 33, 0.07); box-shadow: inset 0 0 0 1px rgba(33, 33, 33, 0.12); }
+  .case-feed-card--muted .tile-base { background: var(--ink-muted); }
+  .case-feed-card--muted .tile-wipe { background: var(--accent-graphite); }
+  .case-feed-card--muted .tile-face--rest, .case-feed-card--muted .tile-face--alt { color: var(--ink-inverse); }
+  @media (min-width: 640px) { .cf-badges { left: 16px; right: 16px; bottom: 16px; } }
+  @media (min-width: 1024px) { .cf-badges { left: 20px; right: 20px; bottom: 20px; } }
+
+  /* ---- My Work as a 3 x 2 grid (after the reference): Back to Home, the
+     four case studies, More Projects. The two utility tiles are white with a
+     hairline border and wipe to graphite. ---- */
+  #view-work .detail-shell { max-width: 1240px; }
+  @media (min-width: 1024px) { .case-feed { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .case-feed-card--util .tile-base { background: #fff; }
+  .case-feed-card--util { border: 1px solid rgba(33, 33, 33, 0.2); }
+  .case-feed-card--util .tile-wipe { background: var(--accent-graphite); }
+  .case-feed-card--util .tile-pad { justify-content: center; }
+  .cf-util { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; color: var(--ink); transition: color 200ms ease; }
+  .case-feed-card--util.is-hover .cf-util { color: var(--ink-inverse); }
+  .cf-util-icon svg { display: block; width: 20px; height: 20px; }
+  .cf-util-icon { margin-bottom: 6px; transition: transform 200ms ease; }
+  .cf-back.is-hover .cf-util-icon { transform: translateX(-3px); }
+  .cf-more.is-hover .cf-util-icon { transform: translate(2px, -2px); }
+  .cf-util-title { font: 700 20px/27.5px var(--font-display); }
+  .cf-util-sub { max-width: 280px; font: 400 13px/19.5px var(--font-body); opacity: 0.75; }
+
+  /* ---- My Work, fit and sizing = the home bento, value for value: the page
+     padding (12 / 16 / 20px) and gap, square tiles stacked on phones, a
+     zero-scroll 3 x 2 grid filling the viewport from 640px, and the same
+     2-column square-tile override on portrait tablets. ---- */
+  #view-work { min-height: 100vh; }
+  #view-work .detail-shell { max-width: none; margin: 0; padding: var(--space-3); min-height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
+  #view-work .case-feed { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; gap: var(--space-3); }
+  #view-work .tile.case-feed-card { aspect-ratio: 1 / 1; height: auto; min-height: 0; }
+  @media (min-width: 640px) {
+    #view-work .detail-shell { height: 100vh; min-height: 0; padding: var(--space-4); }
+    #view-work .case-feed { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+    #view-work .tile.case-feed-card { aspect-ratio: auto; height: 100%; min-width: 0; }
+  }
+  @media (min-width: 1024px) {
+    #view-work .detail-shell { padding: var(--space-5); }
+    #view-work .case-feed { gap: var(--space-5); }
+  }
+  @media (min-width: 640px) and (orientation: portrait) {
+    #view-work .detail-shell { height: auto; min-height: 100vh; }
+    #view-work .case-feed { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; align-items: start; }
+    #view-work .tile.case-feed-card { aspect-ratio: 1 / 1; height: auto; }
+  }
 </style>
 
 <!-- a11y-layer -->
@@ -3172,18 +3246,24 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
 </div>
 
   <div class="detail-view" id="view-work">
-      <div class="subpage-nav">
-        <button class="nav-back" type="button" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span>Back to Home</span></button>
-        <a class="nav-viewall" href="#archive" data-page="archive"><span>View All Case Studies</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg></a>
-      </div>
 
     <div class="detail-shell">
-      <header class="detail-header" role="presentation">
-        <span class="eyebrow">My Work</span>
-        <h1 class="detail-title">Products that shipped</h1>
-        <p class="detail-intro">Curated case studies within B2B · SaaS · Enterprise · Product-Led Growth · 0→1, from the last 8+ years as a product designer.</p>
-      </header>
       <div class="case-feed">
+
+        <a class="tile case-feed-card case-feed-card--util cf-back" href="#" data-wipe data-back>
+          <div class="tile-base"></div>
+          <div class="tile-wipe"></div>
+          <div class="tile-body">
+            <div class="tile-pad">
+              <div class="cf-util">
+                <span class="cf-util-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></span>
+                <span class="cf-util-title">Back to Home</span>
+                
+              </div>
+            </div>
+          </div>
+        </a>
+
 
         <a class="tile case-feed-card case-feed-card--red-deep" href="#case-worker" data-wipe data-page="case-worker">
           <div class="tile-base"></div>
@@ -3201,10 +3281,11 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
                 </div>
               </div>
             </div>
+            <span class="cf-badges" aria-hidden="false"><span class="cf-pill">B2B</span><span class="cf-pill">Enterprise SaaS</span><span class="cf-pill">Honeywell</span></span>
           </div>
         </a>
 
-        <a class="tile case-feed-card case-feed-card--graphite" href="#case1" data-wipe data-page="case1">
+        <a class="tile case-feed-card case-feed-card--cream" href="#case1" data-wipe data-page="case1">
           <div class="tile-base"></div>
           <div class="tile-wipe"></div>
           <div class="tile-body">
@@ -3220,10 +3301,11 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
                 </div>
               </div>
             </div>
+            <span class="cf-badges" aria-hidden="false"><span class="cf-pill">Consumer</span><span class="cf-pill">B2C</span><span class="cf-pill">OpenAI</span></span>
           </div>
         </a>
 
-        <a class="tile case-feed-card case-feed-card--red-deep" href="#case2" data-wipe data-page="case2">
+        <a class="tile case-feed-card case-feed-card--graphite" href="#case2" data-wipe data-page="case2">
           <div class="tile-base"></div>
           <div class="tile-wipe"></div>
           <div class="tile-body">
@@ -3239,10 +3321,11 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
                 </div>
               </div>
             </div>
+            <span class="cf-badges" aria-hidden="false"><span class="cf-pill">B2B</span><span class="cf-pill">Enterprise SaaS</span><span class="cf-pill">Honeywell</span><span class="cf-pill cf-award"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Best UX Award</span></span>
           </div>
         </a>
 
-        <a class="tile case-feed-card case-feed-card--graphite" href="#case3" data-wipe data-page="case3">
+        <a class="tile case-feed-card case-feed-card--muted" href="#case3" data-wipe data-page="case3">
           <div class="tile-base"></div>
           <div class="tile-wipe"></div>
           <div class="tile-body">
@@ -3258,8 +3341,24 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
                 </div>
               </div>
             </div>
+            <span class="cf-badges" aria-hidden="false"><span class="cf-pill">[Type]</span><span class="cf-pill">[Company]</span></span>
           </div>
         </a>
+
+        <a class="tile case-feed-card case-feed-card--util cf-more" href="#archive" data-wipe data-page="archive">
+          <div class="tile-base"></div>
+          <div class="tile-wipe"></div>
+          <div class="tile-body">
+            <div class="tile-pad">
+              <div class="cf-util">
+                <span class="cf-util-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg></span>
+                <span class="cf-util-title">More Projects</span>
+                <span class="cf-util-sub">Every case study in one list, including the ones still being brought over.</span>
+              </div>
+            </div>
+          </div>
+        </a>
+
 
       </div>
     </div>
