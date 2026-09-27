@@ -11177,6 +11177,157 @@ three/build/three.module.js:
     if (e.detail === 2) { pushMood('delighted', 1400); sparkle(); say('All three moments seen', { key: 'stories-done', life: 1800 }); }
   });
 
+  /* -------------------------------------------------------------- ADAPTIVE */
+  /* A second, proactive layer. It watches how the page is being read and
+     offers the next useful thing, once each:
+       - interactive content reaching the middle of the screen that hasn't
+         been touched: she looks at it, frames it and says what to do
+       - prototypes: invites a click, cheers when one opens, and prompts a
+         click if the pointer lingers on one without opening it
+       - pace: skimming fast through a section gets "slow down"; sitting
+         still too long gets "keep scrolling"; scrolling back up points to
+         the sidebar
+       - feeling: a hop at the numbers, a think at the problem, a glint at
+         the outcome; a sparkle once every section has been seen
+       - the end: at the bottom she waves and points to the next case study
+     Everything it says goes through the same once-per-session nudge (and
+     its minimum gap), so it never stacks on top of the guide script. */
+  var AD = {
+    cands: [
+      { sel: '.ex-grid', key: 'ad-ex', text: 'Hover a decision · see what we chose', hover: '.ex-tile', also: ['exploration-enter'] },
+      { sel: '[data-pw]', key: 'ad-wheel', text: 'Hover a petal · read the emotion', hover: '.pw-petal', also: ['approach-wheel'] },
+      { sel: '.ms-comp', key: 'ad-films', text: 'Click a film to pause it', hover: '.ms-screen', also: ['solution-films'] },
+      { sel: '[data-fs-proto]', key: 'ad-hmt', text: 'Click the screen · take the wheel', hover: '[data-fs-tap]', also: ['solution-proto'] },
+      { sel: '[data-fp]', all: true, key: 'ad-proto', text: 'Click · try the real prototype', hover: '.fp-cover', mood: 'hint' },
+      { sel: '.hmw', key: 'ad-hmw', text: 'Read this one slowly', watch: true },
+      { sel: '.jm-tile', key: 'ad-curve', text: 'Watch the curve · how it felt', watch: true },
+      { sel: '.nz-tile', key: 'ad-nz', text: 'Watch the line · flashpoint to safe zone', watch: true },
+      { sel: '[data-sc-pin]', key: 'ad-strips', text: 'Keep scrolling · it comes together', watch: true },
+      { sel: '.exs', key: 'ad-deck', text: 'Scroll slowly · the cards stack up', watch: true, also: ['exploration-enter'] }
+    ],
+    idleMs: 9000, skimMs: 900, skimSpeed: 30
+  };
+  var adEngaged = [], adTimers = [];
+  function adLater(fn, ms) { adTimers.push(setTimeout(fn, ms)); }
+  function adMiddle(el) {
+    var r = el.getBoundingClientRect(), vh = window.innerHeight;
+    return r.height > 0 && r.top < vh * 0.62 && r.bottom > vh * 0.38;
+  }
+  function adTouched(el) { return adEngaged.indexOf(el) !== -1; }
+  function sayRetry(text, opts, tries) { tries = tries || 0; if (!S.live || (opts.key && seen[opts.key])) return; if (!say(text, opts) && tries < 10) adLater(function () { sayRetry(text, opts, tries + 1); }, 900); }
+  /* offer a nudge about an element, retrying briefly if another nudge is on */
+  function offer(key, text, el, opts) {
+    opts = opts || {};
+    var tries = 0;
+    (function go() {
+      if (!S.live || seen[key]) return;
+      if (el && (!adMiddle(el) || adTouched(el))) return;
+      if ((opts.also || []).some(function (k) { return seen[k]; })) return;
+      if (S.presence >= 0.6 && say(text, { key: key, mood: opts.mood || 'curious' })) {
+        if (el) { S.lookEl = el; spotlight(el, 2400); }
+        return;
+      }
+      if (++tries < 10) adLater(go, 1200);
+    })();
+  }
+  AD.cands.forEach(function (c) {
+    var els = c.all ? Array.prototype.slice.call(view.querySelectorAll(c.sel)) : [view.querySelector(c.sel)];
+    els.forEach(function (el, i) {
+      if (!el) return;
+      var key = c.all ? c.key + '-' + i : c.key;
+      if (!c.watch) {
+        var hits = c.hover ? el.querySelectorAll(c.hover) : [el];
+        Array.prototype.forEach.call(hits.length ? hits : [el], function (h) {
+          var mark = function () { if (!adTouched(el)) { adEngaged.push(el); glint(); } };
+          h.addEventListener('pointerenter', mark); h.addEventListener('focus', mark, true); h.addEventListener('click', mark);
+        });
+      }
+      new IntersectionObserver(function (es) {
+        if (!es[0].isIntersecting) return;
+        adLater(function () { offer(key, c.text, el, { mood: c.mood, also: c.also }); }, c.watch ? 700 : 1600);
+      }, { rootMargin: '-38% 0px -38% 0px' }).observe(el);
+    });
+  });
+
+  /* prototypes: cheer when one opens; nudge a click if the pointer lingers */
+  Array.prototype.forEach.call(view.querySelectorAll('[data-fp]'), function (fp, i) {
+    new MutationObserver(function () {
+      if (!fp.classList.contains('is-live') || fp.__adLive) return;
+      fp.__adLive = true;
+      pushMood('delighted', 1400); sparkle();
+      sayRetry('You’re in · click around, it’s the real prototype', { key: 'ad-live-' + i, mood: 'delighted', life: 3200 });
+    }).observe(fp, { attributes: true, attributeFilter: ['class'] });
+    var cover = fp.querySelector('.fp-cover'), lingerT = 0;
+    if (cover) {
+      cover.addEventListener('pointerenter', function () {
+        clearTimeout(lingerT);
+        lingerT = setTimeout(function () { if (!fp.classList.contains('is-live')) say('Click to open it', { key: 'ad-linger-' + i, mood: 'hint' }); }, 1800);
+      });
+      cover.addEventListener('pointerleave', function () { clearTimeout(lingerT); });
+    }
+  });
+  /* films: acknowledge a pause */
+  Array.prototype.forEach.call(view.querySelectorAll('[data-ms-film]'), function (f) {
+    f.addEventListener('click', function () { setTimeout(function () { if (f.classList.contains('is-paused')) say('Paused · click again to play', { count: true }); }, 60); });
+  });
+
+  /* pace, feeling and the end: one light poll while live */
+  var adSkim = 0, adSlowCount = 0, adIdleCount = 0, adMaxY = 0, adSecSeen = {}, adLastSec = null;
+  var adNext = view.querySelector('.cs-side--next'), adNextTitle = adNext && adNext.querySelector('.cs-side-title');
+  var adSidebar = view.querySelector('.case-sidebar');
+  function suffix(id) { return (id || '').replace(/^[a-z0-9]+-/, ''); }
+  function hmm() { buddy.classList.add('fx-hmm'); setTimeout(function () { buddy.classList.remove('fx-hmm'); }, 1900); }
+  setInterval(function () {
+    if (!S.live || S.presence < 0.6) return;
+    var now = performance.now(), y = window.scrollY, sec = S.section;
+    var atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 4;
+
+    // entering a section: a small feeling to go with it
+    if (sec && sec !== adLastSec) {
+      adLastSec = sec;
+      var s = suffix(sec);
+      if (!adSecSeen[sec]) {
+        adSecSeen[sec] = 1;
+        if (s === 'impact') pushMood('delighted', 900);
+        else if (s === 'problem') hmm();
+        else if (s === 'outcome') { glint(); pushMood('delighted', 900); }
+        else if (s === 'approach' || s === 'role') pushMood('curious', 800);
+        if (Object.keys(adSecSeen).length === sectionEls.length) {
+          sparkle(); pushMood('delighted', 1400);
+          adLater(function () { say('You’ve seen every section', { key: 'ad-all', count: true, life: 1800 }); }, 900);
+        }
+      }
+    }
+
+    // skimming: sustained fast scroll through a section
+    if (S.scrollSpeed > AD.skimSpeed && !atBottom) adSkim += 250; else adSkim = 0;
+    if (adSkim >= AD.skimMs && adSlowCount < 2 && sec && !seen['ad-slow-' + sec]) {
+      if (say('Slow down · this part matters', { key: 'ad-slow-' + sec, mood: 'skim' })) { adSlowCount++; adSkim = 0; }
+    }
+
+    // stuck: no input for a while, before she dozes off
+    var still = now - S.lastInput;
+    if (still > AD.idleMs && still < PHYS.restAfter && adIdleCount < 3 && !atBottom && sec && !seen['ad-idle-' + sec]) {
+      if (say('Keep scrolling · there’s more below', { key: 'ad-idle-' + sec, mood: 'hint' })) adIdleCount++;
+    }
+
+    // going back up a long way: the sidebar is quicker
+    if (y > adMaxY) adMaxY = y;
+    if (adMaxY - y > window.innerHeight * 1.6 && S.scrollDir < -0.4 && adSidebar && adSidebar.offsetParent && !seen['ad-back']) {
+      if (say('Looking for something? The sidebar jumps anywhere', { key: 'ad-back', mood: 'hint' })) spotlight(adSidebar, 2400);
+    }
+
+    // the end: wave, and point to what's next
+    if (atBottom && !seen['ad-bye']) {
+      var nextName = adNextTitle ? adNextTitle.textContent.trim() : '';
+      var text = seen['bye'] ? (nextName ? 'Up next: ' + nextName + ' →' : 'That’s the end · thanks') : (nextName ? 'Thanks for reading · next: ' + nextName : 'Thanks for reading · bye for now');
+      if (say(text, { key: 'ad-bye', mood: 'wave', life: 3400 })) {
+        pushMood('wave', 1600);
+        if (adNext && adNext.offsetParent) { S.lookEl = adNext; spotlight(adNext, 2600); }
+      }
+    }
+  }, 250);
+
   /* --------------------------------------------------------------- TARGETS */
   function classify(el) {
     if (!el || !view.contains(el)) return { hover: null, text: false };
@@ -12073,6 +12224,157 @@ three/build/three.module.js:
     if (e.detail === 2) { pushMood('delighted', 1400); sparkle(); say('All three storyboards seen', { key: 'stories-done', life: 1800 }); }
   });
 
+  /* -------------------------------------------------------------- ADAPTIVE */
+  /* A second, proactive layer. It watches how the page is being read and
+     offers the next useful thing, once each:
+       - interactive content reaching the middle of the screen that hasn't
+         been touched: she looks at it, frames it and says what to do
+       - prototypes: invites a click, cheers when one opens, and prompts a
+         click if the pointer lingers on one without opening it
+       - pace: skimming fast through a section gets "slow down"; sitting
+         still too long gets "keep scrolling"; scrolling back up points to
+         the sidebar
+       - feeling: a hop at the numbers, a think at the problem, a glint at
+         the outcome; a sparkle once every section has been seen
+       - the end: at the bottom she waves and points to the next case study
+     Everything it says goes through the same once-per-session nudge (and
+     its minimum gap), so it never stacks on top of the guide script. */
+  var AD = {
+    cands: [
+      { sel: '.ex-grid', key: 'ad-ex', text: 'Hover a decision · see what we chose', hover: '.ex-tile', also: ['exploration-enter'] },
+      { sel: '[data-pw]', key: 'ad-wheel', text: 'Hover a petal · read the emotion', hover: '.pw-petal', also: ['approach-wheel'] },
+      { sel: '.ms-comp', key: 'ad-films', text: 'Click a film to pause it', hover: '.ms-screen', also: ['solution-films'] },
+      { sel: '[data-fs-proto]', key: 'ad-hmt', text: 'Click the screen · take the wheel', hover: '[data-fs-tap]', also: ['solution-proto'] },
+      { sel: '[data-fp]', all: true, key: 'ad-proto', text: 'Click · try the real prototype', hover: '.fp-cover', mood: 'hint' },
+      { sel: '.hmw', key: 'ad-hmw', text: 'Read this one slowly', watch: true },
+      { sel: '.jm-tile', key: 'ad-curve', text: 'Watch the curve · how it felt', watch: true },
+      { sel: '.nz-tile', key: 'ad-nz', text: 'Watch the line · flashpoint to safe zone', watch: true },
+      { sel: '[data-sc-pin]', key: 'ad-strips', text: 'Keep scrolling · it comes together', watch: true },
+      { sel: '.exs', key: 'ad-deck', text: 'Scroll slowly · the cards stack up', watch: true, also: ['exploration-enter'] }
+    ],
+    idleMs: 9000, skimMs: 900, skimSpeed: 30
+  };
+  var adEngaged = [], adTimers = [];
+  function adLater(fn, ms) { adTimers.push(setTimeout(fn, ms)); }
+  function adMiddle(el) {
+    var r = el.getBoundingClientRect(), vh = window.innerHeight;
+    return r.height > 0 && r.top < vh * 0.62 && r.bottom > vh * 0.38;
+  }
+  function adTouched(el) { return adEngaged.indexOf(el) !== -1; }
+  function sayRetry(text, opts, tries) { tries = tries || 0; if (!S.live || (opts.key && seen[opts.key])) return; if (!say(text, opts) && tries < 10) adLater(function () { sayRetry(text, opts, tries + 1); }, 900); }
+  /* offer a nudge about an element, retrying briefly if another nudge is on */
+  function offer(key, text, el, opts) {
+    opts = opts || {};
+    var tries = 0;
+    (function go() {
+      if (!S.live || seen[key]) return;
+      if (el && (!adMiddle(el) || adTouched(el))) return;
+      if ((opts.also || []).some(function (k) { return seen[k]; })) return;
+      if (S.presence >= 0.6 && say(text, { key: key, mood: opts.mood || 'curious' })) {
+        if (el) { S.lookEl = el; spotlight(el, 2400); }
+        return;
+      }
+      if (++tries < 10) adLater(go, 1200);
+    })();
+  }
+  AD.cands.forEach(function (c) {
+    var els = c.all ? Array.prototype.slice.call(view.querySelectorAll(c.sel)) : [view.querySelector(c.sel)];
+    els.forEach(function (el, i) {
+      if (!el) return;
+      var key = c.all ? c.key + '-' + i : c.key;
+      if (!c.watch) {
+        var hits = c.hover ? el.querySelectorAll(c.hover) : [el];
+        Array.prototype.forEach.call(hits.length ? hits : [el], function (h) {
+          var mark = function () { if (!adTouched(el)) { adEngaged.push(el); glint(); } };
+          h.addEventListener('pointerenter', mark); h.addEventListener('focus', mark, true); h.addEventListener('click', mark);
+        });
+      }
+      new IntersectionObserver(function (es) {
+        if (!es[0].isIntersecting) return;
+        adLater(function () { offer(key, c.text, el, { mood: c.mood, also: c.also }); }, c.watch ? 700 : 1600);
+      }, { rootMargin: '-38% 0px -38% 0px' }).observe(el);
+    });
+  });
+
+  /* prototypes: cheer when one opens; nudge a click if the pointer lingers */
+  Array.prototype.forEach.call(view.querySelectorAll('[data-fp]'), function (fp, i) {
+    new MutationObserver(function () {
+      if (!fp.classList.contains('is-live') || fp.__adLive) return;
+      fp.__adLive = true;
+      pushMood('delighted', 1400); sparkle();
+      sayRetry('You’re in · click around, it’s the real prototype', { key: 'ad-live-' + i, mood: 'delighted', life: 3200 });
+    }).observe(fp, { attributes: true, attributeFilter: ['class'] });
+    var cover = fp.querySelector('.fp-cover'), lingerT = 0;
+    if (cover) {
+      cover.addEventListener('pointerenter', function () {
+        clearTimeout(lingerT);
+        lingerT = setTimeout(function () { if (!fp.classList.contains('is-live')) say('Click to open it', { key: 'ad-linger-' + i, mood: 'hint' }); }, 1800);
+      });
+      cover.addEventListener('pointerleave', function () { clearTimeout(lingerT); });
+    }
+  });
+  /* films: acknowledge a pause */
+  Array.prototype.forEach.call(view.querySelectorAll('[data-ms-film]'), function (f) {
+    f.addEventListener('click', function () { setTimeout(function () { if (f.classList.contains('is-paused')) say('Paused · click again to play', { count: true }); }, 60); });
+  });
+
+  /* pace, feeling and the end: one light poll while live */
+  var adSkim = 0, adSlowCount = 0, adIdleCount = 0, adMaxY = 0, adSecSeen = {}, adLastSec = null;
+  var adNext = view.querySelector('.cs-side--next'), adNextTitle = adNext && adNext.querySelector('.cs-side-title');
+  var adSidebar = view.querySelector('.case-sidebar');
+  function suffix(id) { return (id || '').replace(/^[a-z0-9]+-/, ''); }
+  function hmm() { buddy.classList.add('fx-hmm'); setTimeout(function () { buddy.classList.remove('fx-hmm'); }, 1900); }
+  setInterval(function () {
+    if (!S.live || S.presence < 0.6) return;
+    var now = performance.now(), y = window.scrollY, sec = S.section;
+    var atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 4;
+
+    // entering a section: a small feeling to go with it
+    if (sec && sec !== adLastSec) {
+      adLastSec = sec;
+      var s = suffix(sec);
+      if (!adSecSeen[sec]) {
+        adSecSeen[sec] = 1;
+        if (s === 'impact') pushMood('delighted', 900);
+        else if (s === 'problem') hmm();
+        else if (s === 'outcome') { glint(); pushMood('delighted', 900); }
+        else if (s === 'approach' || s === 'role') pushMood('curious', 800);
+        if (Object.keys(adSecSeen).length === sectionEls.length) {
+          sparkle(); pushMood('delighted', 1400);
+          adLater(function () { say('You’ve seen every section', { key: 'ad-all', count: true, life: 1800 }); }, 900);
+        }
+      }
+    }
+
+    // skimming: sustained fast scroll through a section
+    if (S.scrollSpeed > AD.skimSpeed && !atBottom) adSkim += 250; else adSkim = 0;
+    if (adSkim >= AD.skimMs && adSlowCount < 2 && sec && !seen['ad-slow-' + sec]) {
+      if (say('Slow down · this part matters', { key: 'ad-slow-' + sec, mood: 'skim' })) { adSlowCount++; adSkim = 0; }
+    }
+
+    // stuck: no input for a while, before she dozes off
+    var still = now - S.lastInput;
+    if (still > AD.idleMs && still < PHYS.restAfter && adIdleCount < 3 && !atBottom && sec && !seen['ad-idle-' + sec]) {
+      if (say('Keep scrolling · there’s more below', { key: 'ad-idle-' + sec, mood: 'hint' })) adIdleCount++;
+    }
+
+    // going back up a long way: the sidebar is quicker
+    if (y > adMaxY) adMaxY = y;
+    if (adMaxY - y > window.innerHeight * 1.6 && S.scrollDir < -0.4 && adSidebar && adSidebar.offsetParent && !seen['ad-back']) {
+      if (say('Looking for something? The sidebar jumps anywhere', { key: 'ad-back', mood: 'hint' })) spotlight(adSidebar, 2400);
+    }
+
+    // the end: wave, and point to what's next
+    if (atBottom && !seen['ad-bye']) {
+      var nextName = adNextTitle ? adNextTitle.textContent.trim() : '';
+      var text = seen['bye'] ? (nextName ? 'Up next: ' + nextName + ' →' : 'That’s the end · thanks') : (nextName ? 'Thanks for reading · next: ' + nextName : 'Thanks for reading · bye for now');
+      if (say(text, { key: 'ad-bye', mood: 'wave', life: 3400 })) {
+        pushMood('wave', 1600);
+        if (adNext && adNext.offsetParent) { S.lookEl = adNext; spotlight(adNext, 2600); }
+      }
+    }
+  }, 250);
+
   /* --------------------------------------------------------------- TARGETS */
   function classify(el) {
     if (!el || !view.contains(el)) return { hover: null, text: false };
@@ -12965,6 +13267,157 @@ three/build/three.module.js:
     glint();
     if (e.detail === 4) { pushMood('delighted', 1400); sparkle(); say('All five wireframes seen', { key: 'stories-done', life: 1800 }); }
   });
+
+  /* -------------------------------------------------------------- ADAPTIVE */
+  /* A second, proactive layer. It watches how the page is being read and
+     offers the next useful thing, once each:
+       - interactive content reaching the middle of the screen that hasn't
+         been touched: she looks at it, frames it and says what to do
+       - prototypes: invites a click, cheers when one opens, and prompts a
+         click if the pointer lingers on one without opening it
+       - pace: skimming fast through a section gets "slow down"; sitting
+         still too long gets "keep scrolling"; scrolling back up points to
+         the sidebar
+       - feeling: a hop at the numbers, a think at the problem, a glint at
+         the outcome; a sparkle once every section has been seen
+       - the end: at the bottom she waves and points to the next case study
+     Everything it says goes through the same once-per-session nudge (and
+     its minimum gap), so it never stacks on top of the guide script. */
+  var AD = {
+    cands: [
+      { sel: '.ex-grid', key: 'ad-ex', text: 'Hover a decision · see what we chose', hover: '.ex-tile', also: ['exploration-enter'] },
+      { sel: '[data-pw]', key: 'ad-wheel', text: 'Hover a petal · read the emotion', hover: '.pw-petal', also: ['approach-wheel'] },
+      { sel: '.ms-comp', key: 'ad-films', text: 'Click a film to pause it', hover: '.ms-screen', also: ['solution-films'] },
+      { sel: '[data-fs-proto]', key: 'ad-hmt', text: 'Click the screen · take the wheel', hover: '[data-fs-tap]', also: ['solution-proto'] },
+      { sel: '[data-fp]', all: true, key: 'ad-proto', text: 'Click · try the real prototype', hover: '.fp-cover', mood: 'hint' },
+      { sel: '.hmw', key: 'ad-hmw', text: 'Read this one slowly', watch: true },
+      { sel: '.jm-tile', key: 'ad-curve', text: 'Watch the curve · how it felt', watch: true },
+      { sel: '.nz-tile', key: 'ad-nz', text: 'Watch the line · flashpoint to safe zone', watch: true },
+      { sel: '[data-sc-pin]', key: 'ad-strips', text: 'Keep scrolling · it comes together', watch: true },
+      { sel: '.exs', key: 'ad-deck', text: 'Scroll slowly · the cards stack up', watch: true, also: ['exploration-enter'] }
+    ],
+    idleMs: 9000, skimMs: 900, skimSpeed: 30
+  };
+  var adEngaged = [], adTimers = [];
+  function adLater(fn, ms) { adTimers.push(setTimeout(fn, ms)); }
+  function adMiddle(el) {
+    var r = el.getBoundingClientRect(), vh = window.innerHeight;
+    return r.height > 0 && r.top < vh * 0.62 && r.bottom > vh * 0.38;
+  }
+  function adTouched(el) { return adEngaged.indexOf(el) !== -1; }
+  function sayRetry(text, opts, tries) { tries = tries || 0; if (!S.live || (opts.key && seen[opts.key])) return; if (!say(text, opts) && tries < 10) adLater(function () { sayRetry(text, opts, tries + 1); }, 900); }
+  /* offer a nudge about an element, retrying briefly if another nudge is on */
+  function offer(key, text, el, opts) {
+    opts = opts || {};
+    var tries = 0;
+    (function go() {
+      if (!S.live || seen[key]) return;
+      if (el && (!adMiddle(el) || adTouched(el))) return;
+      if ((opts.also || []).some(function (k) { return seen[k]; })) return;
+      if (S.presence >= 0.6 && say(text, { key: key, mood: opts.mood || 'curious' })) {
+        if (el) { S.lookEl = el; spotlight(el, 2400); }
+        return;
+      }
+      if (++tries < 10) adLater(go, 1200);
+    })();
+  }
+  AD.cands.forEach(function (c) {
+    var els = c.all ? Array.prototype.slice.call(view.querySelectorAll(c.sel)) : [view.querySelector(c.sel)];
+    els.forEach(function (el, i) {
+      if (!el) return;
+      var key = c.all ? c.key + '-' + i : c.key;
+      if (!c.watch) {
+        var hits = c.hover ? el.querySelectorAll(c.hover) : [el];
+        Array.prototype.forEach.call(hits.length ? hits : [el], function (h) {
+          var mark = function () { if (!adTouched(el)) { adEngaged.push(el); glint(); } };
+          h.addEventListener('pointerenter', mark); h.addEventListener('focus', mark, true); h.addEventListener('click', mark);
+        });
+      }
+      new IntersectionObserver(function (es) {
+        if (!es[0].isIntersecting) return;
+        adLater(function () { offer(key, c.text, el, { mood: c.mood, also: c.also }); }, c.watch ? 700 : 1600);
+      }, { rootMargin: '-38% 0px -38% 0px' }).observe(el);
+    });
+  });
+
+  /* prototypes: cheer when one opens; nudge a click if the pointer lingers */
+  Array.prototype.forEach.call(view.querySelectorAll('[data-fp]'), function (fp, i) {
+    new MutationObserver(function () {
+      if (!fp.classList.contains('is-live') || fp.__adLive) return;
+      fp.__adLive = true;
+      pushMood('delighted', 1400); sparkle();
+      sayRetry('You’re in · click around, it’s the real prototype', { key: 'ad-live-' + i, mood: 'delighted', life: 3200 });
+    }).observe(fp, { attributes: true, attributeFilter: ['class'] });
+    var cover = fp.querySelector('.fp-cover'), lingerT = 0;
+    if (cover) {
+      cover.addEventListener('pointerenter', function () {
+        clearTimeout(lingerT);
+        lingerT = setTimeout(function () { if (!fp.classList.contains('is-live')) say('Click to open it', { key: 'ad-linger-' + i, mood: 'hint' }); }, 1800);
+      });
+      cover.addEventListener('pointerleave', function () { clearTimeout(lingerT); });
+    }
+  });
+  /* films: acknowledge a pause */
+  Array.prototype.forEach.call(view.querySelectorAll('[data-ms-film]'), function (f) {
+    f.addEventListener('click', function () { setTimeout(function () { if (f.classList.contains('is-paused')) say('Paused · click again to play', { count: true }); }, 60); });
+  });
+
+  /* pace, feeling and the end: one light poll while live */
+  var adSkim = 0, adSlowCount = 0, adIdleCount = 0, adMaxY = 0, adSecSeen = {}, adLastSec = null;
+  var adNext = view.querySelector('.cs-side--next'), adNextTitle = adNext && adNext.querySelector('.cs-side-title');
+  var adSidebar = view.querySelector('.case-sidebar');
+  function suffix(id) { return (id || '').replace(/^[a-z0-9]+-/, ''); }
+  function hmm() { buddy.classList.add('fx-hmm'); setTimeout(function () { buddy.classList.remove('fx-hmm'); }, 1900); }
+  setInterval(function () {
+    if (!S.live || S.presence < 0.6) return;
+    var now = performance.now(), y = window.scrollY, sec = S.section;
+    var atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 4;
+
+    // entering a section: a small feeling to go with it
+    if (sec && sec !== adLastSec) {
+      adLastSec = sec;
+      var s = suffix(sec);
+      if (!adSecSeen[sec]) {
+        adSecSeen[sec] = 1;
+        if (s === 'impact') pushMood('delighted', 900);
+        else if (s === 'problem') hmm();
+        else if (s === 'outcome') { glint(); pushMood('delighted', 900); }
+        else if (s === 'approach' || s === 'role') pushMood('curious', 800);
+        if (Object.keys(adSecSeen).length === sectionEls.length) {
+          sparkle(); pushMood('delighted', 1400);
+          adLater(function () { say('You’ve seen every section', { key: 'ad-all', count: true, life: 1800 }); }, 900);
+        }
+      }
+    }
+
+    // skimming: sustained fast scroll through a section
+    if (S.scrollSpeed > AD.skimSpeed && !atBottom) adSkim += 250; else adSkim = 0;
+    if (adSkim >= AD.skimMs && adSlowCount < 2 && sec && !seen['ad-slow-' + sec]) {
+      if (say('Slow down · this part matters', { key: 'ad-slow-' + sec, mood: 'skim' })) { adSlowCount++; adSkim = 0; }
+    }
+
+    // stuck: no input for a while, before she dozes off
+    var still = now - S.lastInput;
+    if (still > AD.idleMs && still < PHYS.restAfter && adIdleCount < 3 && !atBottom && sec && !seen['ad-idle-' + sec]) {
+      if (say('Keep scrolling · there’s more below', { key: 'ad-idle-' + sec, mood: 'hint' })) adIdleCount++;
+    }
+
+    // going back up a long way: the sidebar is quicker
+    if (y > adMaxY) adMaxY = y;
+    if (adMaxY - y > window.innerHeight * 1.6 && S.scrollDir < -0.4 && adSidebar && adSidebar.offsetParent && !seen['ad-back']) {
+      if (say('Looking for something? The sidebar jumps anywhere', { key: 'ad-back', mood: 'hint' })) spotlight(adSidebar, 2400);
+    }
+
+    // the end: wave, and point to what's next
+    if (atBottom && !seen['ad-bye']) {
+      var nextName = adNextTitle ? adNextTitle.textContent.trim() : '';
+      var text = seen['bye'] ? (nextName ? 'Up next: ' + nextName + ' →' : 'That’s the end · thanks') : (nextName ? 'Thanks for reading · next: ' + nextName : 'Thanks for reading · bye for now');
+      if (say(text, { key: 'ad-bye', mood: 'wave', life: 3400 })) {
+        pushMood('wave', 1600);
+        if (adNext && adNext.offsetParent) { S.lookEl = adNext; spotlight(adNext, 2600); }
+      }
+    }
+  }, 250);
 
   /* --------------------------------------------------------------- TARGETS */
   function classify(el) {
