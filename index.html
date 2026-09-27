@@ -3063,6 +3063,18 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
     #view-work .case-feed { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; align-items: start; }
     #view-work .tile.case-feed-card { aspect-ratio: 1 / 1; height: auto; }
   }
+
+  /* ---- Case studies: breadcrumb in place of "Back to Home" in the top
+     bar: Home / My Work / this case study. Same type as the bar (14/20
+     DM Sans 500); links in ink-muted turning ink on hover, the current page
+     in ink. Phones keep Home / My Work. ---- */
+  .crumbs { display: inline-flex; flex: none; align-items: center; gap: 8px; font: 500 14px/20px var(--font-body); }
+  .crumb { color: var(--ink-muted); text-decoration: none; white-space: nowrap; transition: color 150ms ease; }
+  a.crumb:hover { color: var(--ink); }
+  a.crumb:focus-visible { outline: 2px solid var(--accent-red-deep); outline-offset: 2px; border-radius: 2px; }
+  .crumb--here { color: var(--accent-red-deep); overflow: hidden; text-overflow: ellipsis; }
+  .crumb-sep { color: rgba(104, 100, 95, 0.45); }
+  @media (max-width: 639px) { .crumb--here, .crumb-sep--last { display: none; } }
 </style>
 
 <!-- a11y-layer -->
@@ -3366,7 +3378,7 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
 
   <div class="detail-view" id="view-case1">
       <div class="subpage-nav">
-        <button class="nav-back" type="button" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span>Back to Home</span></button>
+        <nav class="crumbs" aria-label="Breadcrumb"><a class="crumb" href="#" data-back>Home</a><span class="crumb-sep" aria-hidden="true">/</span><a class="crumb" href="#work" data-page="work">My Work</a><span class="crumb-sep crumb-sep--last" aria-hidden="true">/</span><span class="crumb crumb--here" aria-current="page">Meadow</span></nav>
         <a class="nav-viewall" href="#archive" data-page="archive"><span>View All Case Studies</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg></a>
       </div>
 
@@ -3657,7 +3669,7 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
 
   <div class="detail-view" id="view-case2">
       <div class="subpage-nav">
-        <button class="nav-back" type="button" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span>Back to Home</span></button>
+        <nav class="crumbs" aria-label="Breadcrumb"><a class="crumb" href="#" data-back>Home</a><span class="crumb-sep" aria-hidden="true">/</span><a class="crumb" href="#work" data-page="work">My Work</a><span class="crumb-sep crumb-sep--last" aria-hidden="true">/</span><span class="crumb crumb--here" aria-current="page">Sustainability+</span></nav>
         <a class="nav-viewall" href="#archive" data-page="archive"><span>View All Case Studies</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg></a>
       </div>
 
@@ -4010,7 +4022,7 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
 
   <div class="detail-view" id="view-case3">
       <div class="subpage-nav">
-        <button class="nav-back" type="button" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span>Back to Home</span></button>
+        <nav class="crumbs" aria-label="Breadcrumb"><a class="crumb" href="#" data-back>Home</a><span class="crumb-sep" aria-hidden="true">/</span><a class="crumb" href="#work" data-page="work">My Work</a><span class="crumb-sep crumb-sep--last" aria-hidden="true">/</span><span class="crumb crumb--here" aria-current="page">B2B admin console</span></nav>
         <a class="nav-viewall" href="#archive" data-page="archive"><span>View All Case Studies</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg></a>
       </div>
 
@@ -4073,7 +4085,7 @@ html.is-preloading, html.is-preloading body { overflow: hidden; }
 
   <div class="detail-view" id="view-case-worker">
       <div class="subpage-nav">
-        <button class="nav-back" type="button" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg><span>Back to Home</span></button>
+        <nav class="crumbs" aria-label="Breadcrumb"><a class="crumb" href="#" data-back>Home</a><span class="crumb-sep" aria-hidden="true">/</span><a class="crumb" href="#work" data-page="work">My Work</a><span class="crumb-sep crumb-sep--last" aria-hidden="true">/</span><span class="crumb crumb--here" aria-current="page">Worker Assist</span></nav>
         <a class="nav-viewall" href="#archive" data-page="archive"><span>View All Case Studies</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg></a>
       </div>
 
