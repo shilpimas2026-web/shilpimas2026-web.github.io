@@ -21159,6 +21159,169 @@ html:has(#app[data-route="case-candor"]), body:has(#app[data-route="case-candor"
   });
 })();
 </script>
+<style>
+/* Candor: micro-interactions (this case study only). Inspired by the
+   pacing of Harsha Bardhan's case studies: a ring cursor, soft reveals,
+   gentle parallax, a reading-progress line, a glass back-to-top pill and
+   text that rolls on hover. All of it stops for reduced motion. */
+#view-case-candor .cd-root .cd-topbar { position: sticky; }
+#view-case-candor .cd-root .cd-topbar nav { align-items: center; }
+#view-case-candor .cd-root .cd-topbar nav a { display: inline-flex; align-items: center; height: 36px; }
+@media (max-width: 720px) { #view-case-candor .cd-root .cd-topbar nav a:not(.cd-try) { display: none; } }
+#view-case-candor .cd-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 1.5px; background: var(--lime, #E4E07A); transform-origin: 0 50%; transform: scaleX(var(--cd-p, 0)); pointer-events: none; opacity: .9; }
+#view-case-candor .cd-root .cd-topbar nav a[aria-current="true"]:not(.cd-try) { color: #fff; }
+
+/* soft reveal: rise a little, unblur, fade in */
+#view-case-candor .cd-root.cd-motion [data-cd-rv] { opacity: 0; translate: 0 22px; filter: blur(6px); transition: opacity .8s cubic-bezier(.22, 1, .36, 1), translate .9s cubic-bezier(.22, 1, .36, 1), filter .8s cubic-bezier(.22, 1, .36, 1); transition-delay: var(--cd-d, 0ms); }
+#view-case-candor .cd-root.cd-motion [data-cd-rv].is-in { opacity: 1; translate: 0 0; filter: none; }
+
+/* parallax in the hero: the floating answers drift at their own pace */
+#view-case-candor .cd-root .cd-float, #view-case-candor .cd-root .cd-hero-stage > .cd-phone { will-change: translate; }
+
+/* text that rolls up on hover */
+.cd-roll { display: inline-grid; overflow: hidden; height: 1.25em; line-height: 1.25em; vertical-align: middle; }
+.cd-roll > span { grid-area: 1 / 1; transition: transform .45s cubic-bezier(.22, 1, .36, 1); }
+.cd-roll > span + span { transform: translateY(100%); }
+a:hover > .cd-roll > span:first-child, button:hover > .cd-roll > span:first-child { transform: translateY(-100%); }
+a:hover > .cd-roll > span + span, button:hover > .cd-roll > span + span { transform: translateY(0); }
+
+/* the issue tiles and tier tiles lift a touch under the pointer */
+#view-case-candor .cd-root .cd-issue, #view-case-candor .cd-root .cd-tile-s { transition: transform .5s cubic-bezier(.22, 1, .36, 1), box-shadow .5s ease; }
+#view-case-candor .cd-root .cd-issue:hover, #view-case-candor .cd-root .cd-tile-s:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -24px rgba(0, 0, 0, .9); }
+
+/* ring cursor */
+.cd-cursor { position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity .25s ease; }
+.cd-cursor.is-on { opacity: 1; }
+.cd-cursor-ring { position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 999px; border: 1.5px solid rgba(255, 255, 255, .45); display: grid; place-items: center; transition: width .35s cubic-bezier(.22, 1, .36, 1), height .35s cubic-bezier(.22, 1, .36, 1), margin .35s cubic-bezier(.22, 1, .36, 1), background-color .3s ease, border-color .3s ease; }
+.cd-cursor-dot { position: absolute; left: 0; top: 0; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: #fff; transition: opacity .2s ease; }
+.cd-cursor-label { font: 600 11px/1 "Geist", -apple-system, sans-serif; letter-spacing: .02em; color: #111; opacity: 0; transition: opacity .2s ease; white-space: nowrap; }
+.cd-cursor.is-link .cd-cursor-ring { width: 56px; height: 56px; margin: -28px 0 0 -28px; background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .7); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.cd-cursor.is-tap .cd-cursor-ring { width: 64px; height: 64px; margin: -32px 0 0 -32px; background: rgba(255, 255, 255, .92); border-color: transparent; }
+.cd-cursor.is-tap .cd-cursor-label { opacity: 1; }
+.cd-cursor.is-link .cd-cursor-dot, .cd-cursor.is-tap .cd-cursor-dot { opacity: 0; }
+html.cd-cursor-on #view-case-candor .cd-root, html.cd-cursor-on #view-case-candor .cd-root * { cursor: none !important; }
+
+/* glass back-to-top pill */
+.cd-top-pill { position: fixed; right: 24px; bottom: 24px; z-index: 60; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px 0 12px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 999px; background: rgba(28, 28, 30, .55); -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); color: #E5E5EA; font: 500 13px/1 "Geist", -apple-system, sans-serif; cursor: pointer; opacity: 0; translate: 0 12px; pointer-events: none; transition: opacity .35s ease, translate .45s cubic-bezier(.22, 1, .36, 1), background-color .25s ease; }
+.cd-top-pill svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cd-top-pill.is-on { opacity: 1; translate: 0 0; pointer-events: auto; }
+.cd-top-pill:hover { background: rgba(44, 44, 46, .7); }
+.cd-top-pill:focus-visible { outline: 2px solid #E4E07A; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #view-case-candor .cd-root.cd-motion [data-cd-rv] { opacity: 1; translate: none; filter: none; transition: none; }
+  .cd-roll > span { transition: none; }
+  #view-case-candor .cd-root .cd-issue, #view-case-candor .cd-root .cd-tile-s { transition: none; }
+  .cd-top-pill { transition: opacity .2s ease; translate: none; }
+}
+</style>
+<script>
+(function () {
+  var view = document.getElementById('view-case-candor'); if (!view) return;
+  var root = view.querySelector('.cd-root'); if (!root) return;
+  var app = document.getElementById('app');
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  function here() { return app && app.dataset.route === 'case-candor'; }
+
+  /* 1. soft reveals, staggered within each section */
+  var SEL = ['.cd-titlecard', '.cd-hero .cd-meta', '.cd-hero-stage',
+    '.cd-sec h2', '.cd-sec .cd-eyebrow', '.cd-sec .cd-lead', '.cd-issue', '.cd-tile-s', '.cd-cols > div', '.cd-guard',
+    '.cd-phones-pair', '.cd-query', '.cd-signals', '.cd-bullets', '.cd-stats', '.cd-round-row', '.cd-exp-head', '.cd-exp-row figure',
+    '.cd-steps', '.cd-tip', '.cd-future p', '.cd-roadmap'].join(',');
+  var items = Array.prototype.slice.call(root.querySelectorAll(SEL));
+  var groups = new Map();
+  items.forEach(function (el) {
+    if (el.parentElement.closest('[data-cd-rv]')) return;
+    var sec = el.closest('.cd-sec, .cd-hero') || root, n = groups.get(sec) || 0;
+    el.setAttribute('data-cd-rv', ''); el.style.setProperty('--cd-d', Math.min(n * 70, 420) + 'ms'); groups.set(sec, n + 1);
+  });
+  if (!reduce.matches && 'IntersectionObserver' in window) {
+    root.classList.add('cd-motion');
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } }); }, { rootMargin: '0px 0px -8% 0px', threshold: .12 });
+    root.querySelectorAll('[data-cd-rv]').forEach(function (el) { io.observe(el); });
+  }
+
+  /* 2. reading progress under the Candor bar, plus which section you're in */
+  var bar = root.querySelector('.cd-topbar');
+  var line = document.createElement('span'); line.className = 'cd-progress'; line.setAttribute('aria-hidden', 'true'); if (bar) bar.appendChild(line);
+  var links = Array.prototype.slice.call(root.querySelectorAll('.cd-topbar nav a[data-cd-jump]'));
+  var targets = links.map(function (a) { return document.getElementById(a.getAttribute('data-cd-jump')); });
+
+  /* 3. gentle parallax in the hero */
+  var floats = Array.prototype.slice.call(root.querySelectorAll('.cd-hero .cd-float'));
+  var heroPhone = root.querySelector('.cd-hero-stage > .cd-phone');
+
+  /* 4. glass back-to-top pill */
+  var pill = document.createElement('button');
+  pill.type = 'button'; pill.className = 'cd-top-pill'; pill.setAttribute('aria-label', 'Back to top');
+  pill.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg><span class="cd-roll"><span>Back to top</span><span aria-hidden="true">Back to top</span></span>';
+  document.body.appendChild(pill);
+  pill.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: reduce.matches ? 'auto' : 'smooth' }); });
+
+  var ticking = false;
+  function frame() {
+    ticking = false;
+    if (!here()) { pill.classList.remove('is-on'); return; }
+    var r = root.getBoundingClientRect(), vh = innerHeight;
+    var p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - vh)));
+    root.style.setProperty('--cd-p', p.toFixed(4));
+    pill.classList.toggle('is-on', -r.top > vh * .9);
+    var cur = -1;
+    targets.forEach(function (t, i) { if (t && t.getBoundingClientRect().top < vh * .45) cur = i; });
+    links.forEach(function (a, i) { if (i === cur) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+    if (!reduce.matches) {
+      var y = Math.max(0, -r.top);
+      if (y < vh * 1.4) {
+        floats.forEach(function (f, i) { f.style.translate = '0 ' + (y * (i ? .1 : -.08)).toFixed(1) + 'px'; });
+        if (heroPhone) heroPhone.style.translate = '0 ' + (y * .045).toFixed(1) + 'px';
+      }
+    }
+  }
+  function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll);
+  if (app) new MutationObserver(function () { requestAnimationFrame(frame); }).observe(app, { attributes: true, attributeFilter: ['data-route'] });
+  frame();
+
+  /* 5. text that rolls on hover: the top bar links and the main buttons */
+  root.querySelectorAll('.cd-topbar nav a, .cd-try').forEach(function (a) {
+    if (a.querySelector('svg, img') || a.children.length) return;
+    var t = a.textContent.trim(); if (!t) return;
+    a.setAttribute('aria-label', t);
+    a.innerHTML = '<span class="cd-roll" aria-hidden="true"><span>' + t + '</span><span>' + t + '</span></span>';
+  });
+
+  /* 6. ring cursor (mouse and trackpad only) */
+  var fine = matchMedia('(hover: hover) and (pointer: fine)');
+  if (!fine.matches) return;
+  var cur = document.createElement('div'); cur.className = 'cd-cursor'; cur.setAttribute('aria-hidden', 'true');
+  cur.innerHTML = '<div class="cd-cursor-ring"><span class="cd-cursor-label">Tap</span></div><div class="cd-cursor-dot"></div>';
+  document.body.appendChild(cur);
+  var ring = cur.firstChild, dot = cur.lastChild, mx = -100, my = -100, rx = -100, ry = -100, inside = false, raf = 0;
+  function loop() {
+    rx += (mx - rx) * (reduce.matches ? 1 : .2); ry += (my - ry) * (reduce.matches ? 1 : .2);
+    ring.style.transform = 'translate(' + rx.toFixed(1) + 'px,' + ry.toFixed(1) + 'px)';
+    dot.style.transform = 'translate(' + mx + 'px,' + my + 'px)';
+    if (inside && (Math.abs(mx - rx) > .2 || Math.abs(my - ry) > .2)) raf = requestAnimationFrame(loop); else raf = 0;
+  }
+  function kick() { if (!raf) raf = requestAnimationFrame(loop); }
+  function set(on) { inside = on; cur.classList.toggle('is-on', on); document.documentElement.classList.toggle('cd-cursor-on', on); if (!on) cur.classList.remove('is-link', 'is-tap'); }
+  root.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    if (!inside) { rx = mx = e.clientX; ry = my = e.clientY; set(true); }
+    mx = e.clientX; my = e.clientY;
+    var t = e.target;
+    var tap = t.closest && t.closest('.cd-device');
+    var link = !tap && t.closest && t.closest('a, button, [role="button"], .cd-issue, .cd-tile-s');
+    cur.classList.toggle('is-tap', !!tap);
+    cur.classList.toggle('is-link', !!link);
+    kick();
+  });
+  root.addEventListener('pointerleave', function () { set(false); });
+  addEventListener('blur', function () { set(false); });
+  if (app) new MutationObserver(function () { if (!here()) set(false); }).observe(app, { attributes: true, attributeFilter: ['data-route'] });
+})();
+</script>
 <script>
 /* Candor: the same guide as the other case studies (re-runs Meadow's guide
    with this case study's route, sections and words; prefix yc-). */
